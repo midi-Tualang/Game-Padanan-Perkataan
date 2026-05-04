@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Padanan Perkataan & Maksud</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700;800&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0D1117;
+  --paper:#F7F3ED;
+  --cream:#EDE8DF;
+  --gold:#C8963E;
+  --gold2:#E8B660;
+  --teal:#1A7A6E;
+  --teal2:#25A896;
+  --coral:#D95F3B;
+  --sky:#2E6FA8;
+  --muted:#8A8177;
+  --line:#D4CFC6;
+  --white:#FFFFFF;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+
+body{
+  font-family:'Sora',sans-serif;
+  background:var(--paper);
+  color:var(--ink);
+  min-height:100vh;
+  overflow-x:hidden;
+}
+
+/* Textured paper bg */
+body::before{
+  content:'';
+  position:fixed;inset:0;z-index:0;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events:none;
+}
+
+/* Decorative ruled lines */
+body::after{
+  content:'';
+  position:fixed;inset:0;z-index:0;
+  background-image: repeating-linear-gradient(
+    transparent, transparent 31px,
+    rgba(196,176,140,0.15) 31px, rgba(196,176,140,0.15) 32px
+  );
+  pointer-events:none;
+}
+
+#app{position:relative;z-index:10;max-width:960px;margin:0 auto;padding:24px 16px 80px;}
+
+/* ── HEADER ── */
+.header{
+  display:flex;align-items:flex-start;justify-content:space-between;
+  padding:20px 0 18px;border-bottom:2px solid var(--ink);
+  margin-bottom:28px;animation:fadeIn .6s ease both;
+}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}
+
+.header-left{}
+.header-eyebrow{
+  font-size:.68rem;font-weight:700;letter-spacing:3px;text-transform:uppercase;
+  color:var(--gold);margin-bottom:6px;
+}
+.header-title{
+  font-family:'DM Serif Display',serif;
+  font-size:clamp(1.8rem,5vw,2.8rem);
+  line-height:1.1;color:var(--ink);
+}
+.header-title span{color:var(--teal);}
+.header-sub{font-size:.82rem;color:var(--muted);margin-top:6px;font-weight:400;}
+
+.header-score{
+  text-align:right;flex-shrink:0;
+}
+.score-num{
+  font-family:'DM Serif Display',serif;
+  font-size:2.8rem;color:var(--gold);line-height:1;
+}
+.score-label{font-size:.65rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);}
+.streak-badge{
+  display:inline-flex;align-items:center;gap:4px;margin-top:4px;
+  background:var(--coral);color:white;border-radius:4px;
+  padding:2px 8px;font-size:.72rem;font-weight:700;
+  opacity:0;transition:opacity .3s;
+}
+.streak-badge.show{opacity:1;}
+
+/* ── TABS ── */
+.tabs{
+  display:flex;gap:0;margin-bottom:24px;
+  border:1.5px solid var(--ink);border-radius:8px;overflow:hidden;
+  background:var(--white);
+}
+.tab{
+  flex:1;padding:10px;border:none;background:transparent;cursor:pointer;
+  font-family:'Sora',sans-serif;font-size:.82rem;font-weight:700;
+  color:var(--muted);transition:all .2s;border-right:1.5px solid var(--ink);
+  letter-spacing:.5px;
+}
+.tab:last-child{border-right:none;}
+.tab.active{background:var(--ink);color:var(--paper);}
+.tab:hover:not(.active){background:var(--cream);}
+
+/* ── PROGRESS ── */
+.progress-wrap{
+  display:flex;align-items:center;gap:12px;margin-bottom:24px;
+}
+.progress-track{
+  flex:1;height:6px;background:var(--line);border-radius:3px;overflow:hidden;
+}
+.progress-fill{
+  height:100%;background:linear-gradient(90deg,var(--teal),var(--gold));
+  border-radius:3px;transition:width .5s cubic-bezier(.36,.07,.19,.97);
+}
+.progress-label{
+  font-size:.72rem;font-weight:700;color:var(--muted);white-space:nowrap;
+  letter-spacing:.5px;
+}
+.progress-dots{
+  display:flex;gap:5px;
+}
+.pdot{
+  width:8px;height:8px;border-radius:50%;
+  background:var(--line);border:1.5px solid var(--line);
+  transition:all .3s;
+}
+.pdot.done{background:var(--teal);border-color:var(--teal);}
+.pdot.current{background:var(--gold);border-color:var(--gold);transform:scale(1.3);}
+.pdot.wrong-dot{background:var(--coral);border-color:var(--coral);}
+
+/* ── MODE: PADANAN KAD ── */
+.game-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:0;
+  border:1.5px solid var(--ink);
+  border-radius:12px;
+  overflow:hidden;
+  background:var(--white);
+  box-shadow:4px 4px 0 var(--ink);
+}
+.col-header{
+  padding:12px 18px;font-size:.68rem;font-weight:700;letter-spacing:2px;
+  text-transform:uppercase;border-bottom:1.5px solid var(--ink);
+}
+.col-header.left{background:var(--teal);color:white;border-right:1.5px solid var(--ink);}
+.col-header.right{background:var(--gold);color:white;}
+
+.col-words{border-right:1.5px solid var(--ink);padding:10px;}
+.col-defs{padding:10px;}
+
+.word-card{
+  padding:12px 14px;border-radius:6px;margin-bottom:7px;cursor:pointer;
+  border:1.5px solid transparent;transition:all .2s;
+  font-weight:700;font-size:.88rem;color:var(--ink);
+  background:var(--paper);
+  position:relative;
+  user-select:none;
+}
+.word-card:last-child{margin-bottom:0;}
+.word-card:hover:not(.matched):not(.selected){
+  border-color:var(--teal);background:rgba(26,122,110,.06);
+  transform:translateX(3px);
+}
+.word-card.selected{
+  border-color:var(--teal);background:rgba(26,122,110,.12);
+  box-shadow:0 0 0 2px rgba(26,122,110,.25);
+}
+.word-card.matched{
+  border-color:var(--teal2);background:rgba(37,168,150,.1);
+  color:var(--teal);text-decoration:none;cursor:default;
+  opacity:.7;
+}
+.word-card.wrong-flash{
+  border-color:var(--coral);background:rgba(217,95,59,.1);
+  animation:wrongShake .4s ease;
+}
+@keyframes wrongShake{
+  0%,100%{transform:translateX(0)}
+  25%{transform:translateX(-6px)}
+  75%{transform:translateX(6px)}
+}
+
+.def-card{
+  padding:11px 14px;border-radius:6px;margin-bottom:7px;cursor:pointer;
+  border:1.5px solid transparent;transition:all .2s;
+  font-size:.79rem;line-height:1.55;color:var(--ink);
+  background:var(--cream);
+  user-select:none;
+}
+.def-card:last-child{margin-bottom:0;}
+.def-card:hover:not(.matched):not(.selected){
+  border-color:var(--gold);background:rgba(200,150,62,.07);
+}
+.def-card.selected{
+  border-color:var(--gold);background:rgba(200,150,62,.13);
+  box-shadow:0 0 0 2px rgba(200,150,62,.25);
+}
+.def-card.matched{
+  border-color:var(--gold2);background:rgba(232,182,96,.1);
+  color:var(--gold);cursor:default;opacity:.7;
+}
+.def-card.wrong-flash{
+  border-color:var(--coral);background:rgba(217,95,59,.1);
+  animation:wrongShake .4s ease;
+}
+
+/* Match number badge */
+.match-badge{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:20px;height:20px;border-radius:4px;
+  font-size:.65rem;font-weight:800;flex-shrink:0;margin-right:8px;
+  background:var(--teal);color:white;float:left;margin-top:1px;
+}
+.def-card .match-badge{background:var(--gold);}
+
+/* Instruction bar */
+.instr-bar{
+  display:flex;align-items:center;gap:10px;padding:10px 14px;
+  background:var(--cream);border-radius:8px;margin-bottom:16px;
+  border:1px solid var(--line);font-size:.8rem;color:var(--muted);font-weight:600;
+}
+.instr-icon{font-size:1.1rem;}
+
+/* ── MODE: KUIZ ── */
+.quiz-card{
+  background:var(--white);border:1.5px solid var(--ink);border-radius:12px;
+  padding:28px 26px;box-shadow:4px 4px 0 var(--ink);margin-bottom:16px;
+  animation:slideIn .35s ease;
+}
+@keyframes slideIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+
+.quiz-num{font-size:.7rem;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:10px;}
+.quiz-question{
+  font-family:'DM Serif Display',serif;
+  font-size:clamp(1.1rem,3vw,1.5rem);
+  color:var(--ink);line-height:1.4;margin-bottom:20px;
+  padding:16px 18px;background:var(--cream);border-radius:8px;
+  border-left:4px solid var(--teal);
+}
+.quiz-question em{color:var(--teal);font-style:normal;font-weight:700;}
+
+.quiz-opts{display:flex;flex-direction:column;gap:9px;}
+.quiz-opt{
+  padding:13px 18px;border:1.5px solid var(--line);border-radius:8px;
+  background:var(--paper);cursor:pointer;text-align:left;
+  font-family:'Sora',sans-serif;font-size:.85rem;font-weight:600;
+  color:var(--ink);transition:all .18s;
+  display:flex;align-items:flex-start;gap:12px;
+}
+.quiz-opt:hover:not(:disabled){
+  border-color:var(--teal);background:rgba(26,122,110,.05);
+  transform:translateX(4px);
+}
+.quiz-opt:disabled{cursor:not-allowed;}
+.quiz-opt.correct{background:rgba(26,122,110,.1);border-color:var(--teal);color:var(--teal);}
+.quiz-opt.wrong{background:rgba(217,95,59,.1);border-color:var(--coral);color:var(--coral);}
+.opt-letter{
+  width:26px;height:26px;border-radius:4px;flex-shrink:0;
+  background:var(--line);display:flex;align-items:center;justify-content:center;
+  font-size:.72rem;font-weight:800;color:var(--muted);transition:all .18s;margin-top:1px;
+}
+.quiz-opt.correct .opt-letter{background:var(--teal);color:white;}
+.quiz-opt.wrong .opt-letter{background:var(--coral);color:white;}
+
+.feedback-box{
+  margin-top:14px;padding:13px 16px;border-radius:8px;
+  font-size:.82rem;font-weight:600;line-height:1.5;
+  display:none;animation:fadeIn .3s ease;
+}
+.feedback-box.show{display:block;}
+.feedback-box.right{background:rgba(26,122,110,.1);border:1px solid var(--teal);color:var(--teal);}
+.feedback-box.wrong-fb{background:rgba(217,95,59,.1);border:1px solid var(--coral);color:var(--coral);}
+
+.quiz-next{
+  width:100%;padding:13px;border:1.5px solid var(--ink);border-radius:8px;
+  background:var(--ink);color:var(--paper);cursor:pointer;
+  font-family:'Sora',sans-serif;font-size:.9rem;font-weight:700;
+  letter-spacing:.5px;transition:all .18s;margin-top:12px;
+  display:none;
+}
+.quiz-next.show{display:block;}
+.quiz-next:hover{background:var(--teal);border-color:var(--teal);}
+
+/* ── MODE: ISI TEMPAT KOSONG ── */
+.fill-card{
+  background:var(--white);border:1.5px solid var(--ink);border-radius:12px;
+  padding:26px;box-shadow:4px 4px 0 var(--ink);margin-bottom:16px;
+  animation:slideIn .35s ease;
+}
+.fill-sentence{
+  font-family:'DM Serif Display',serif;
+  font-size:clamp(1rem,2.8vw,1.35rem);
+  line-height:1.8;color:var(--ink);margin-bottom:18px;
+  background:var(--cream);padding:16px 18px;border-radius:8px;
+  border-left:4px solid var(--gold);
+}
+.fill-blank{
+  display:inline-block;min-width:120px;border-bottom:2px solid var(--gold);
+  color:var(--gold);font-weight:700;text-align:center;padding:0 6px;
+  transition:all .3s;
+}
+.fill-blank.filled{
+  border-bottom-color:var(--teal);color:var(--teal);
+  background:rgba(26,122,110,.07);border-radius:4px;
+  padding:2px 8px;
+}
+.fill-choices{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;}
+.fill-choice{
+  padding:8px 16px;border:1.5px solid var(--line);border-radius:6px;
+  background:var(--paper);cursor:pointer;font-family:'Sora',sans-serif;
+  font-size:.82rem;font-weight:700;color:var(--ink);transition:all .18s;
+}
+.fill-choice:hover:not(:disabled){border-color:var(--gold);background:rgba(200,150,62,.07);}
+.fill-choice:disabled{cursor:not-allowed;opacity:.5;}
+.fill-choice.used{opacity:.4;cursor:not-allowed;text-decoration:line-through;}
+.fill-choice.correct-choice{border-color:var(--teal);color:var(--teal);background:rgba(26,122,110,.08);}
+.fill-choice.wrong-choice{border-color:var(--coral);color:var(--coral);background:rgba(217,95,59,.08);animation:wrongShake .4s ease;}
+
+/* ── REWARD ── */
+.reward-overlay{
+  position:fixed;inset:0;z-index:1000;
+  background:rgba(13,17,23,.85);
+  display:none;align-items:center;justify-content:center;
+  backdrop-filter:blur(6px);
+}
+.reward-overlay.show{display:flex;}
+.reward-card{
+  background:var(--paper);border:2px solid var(--ink);border-radius:16px;
+  padding:40px 32px;max-width:420px;width:90%;text-align:center;
+  box-shadow:8px 8px 0 var(--ink);animation:popIn .5s cubic-bezier(.36,.07,.19,.97);
+}
+@keyframes popIn{0%{transform:scale(.5);opacity:0}70%{transform:scale(1.04)}100%{transform:scale(1);opacity:1}}
+.reward-icon{font-size:4.5rem;margin-bottom:10px;display:block;}
+.reward-title{font-family:'DM Serif Display',serif;font-size:2rem;color:var(--ink);margin-bottom:4px;}
+.reward-sub{color:var(--muted);font-size:.88rem;margin-bottom:16px;}
+.reward-score{
+  font-family:'DM Serif Display',serif;font-size:2.5rem;color:var(--gold);
+  margin:10px 0;
+}
+.reward-stars{font-size:2rem;letter-spacing:6px;margin-bottom:20px;}
+.reward-btns{display:flex;gap:10px;}
+.rbtn{
+  flex:1;padding:12px;border-radius:8px;cursor:pointer;
+  font-family:'Sora',sans-serif;font-size:.88rem;font-weight:700;
+  transition:transform .15s;border:1.5px solid var(--ink);
+}
+.rbtn:hover{transform:scale(1.03);}
+.rbtn-primary{background:var(--ink);color:var(--paper);}
+.rbtn-secondary{background:transparent;color:var(--ink);}
+
+/* Confetti */
+.cf{position:fixed;width:9px;height:9px;border-radius:2px;z-index:2000;pointer-events:none;animation:cf-fall linear forwards;}
+@keyframes cf-fall{0%{transform:translateY(-30px) rotate(0deg);opacity:1}100%{transform:translateY(110vh) rotate(720deg);opacity:0}}
+
+/* Responsive */
+@media(max-width:600px){
+  .game-grid{grid-template-columns:1fr;}
+  .col-words{border-right:none;border-bottom:1.5px solid var(--ink);}
+  .header{flex-direction:column;gap:12px;}
+  .header-score{text-align:left;}
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <div class="header-eyebrow">✦ Bahasa Malaysia — Kosa Kata</div>
+      <div class="header-title">Padanan<br><span>Perkataan & Maksud</span></div>
+      <div class="header-sub">10 perkataan · 3 mod permainan</div>
+    </div>
+    <div class="header-score">
+      <div class="score-num" id="scoreNum">0</div>
+      <div class="score-label">Mata</div>
+      <div class="streak-badge" id="streakBadge">🔥 <span id="streakNum">0</span> berturut</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchMode('padanan',this)">🔗 Padanan Kad</button>
+    <button class="tab" onclick="switchMode('kuiz',this)">🎯 Kuiz</button>
+    <button class="tab" onclick="switchMode('isi',this)">✏️ Isi Tempat Kosong</button>
+  </div>
+
+  <!-- Progress -->
+  <div class="progress-wrap">
+    <div class="progress-dots" id="progressDots"></div>
+    <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+    <div class="progress-label" id="progressLabel">0 / 10</div>
+  </div>
+
+  <!-- Content area -->
+  <div id="contentArea"></div>
+
+</div>
+
+<!-- Reward -->
+<div class="reward-overlay" id="rewardOverlay">
+  <div class="reward-card">
+    <span class="reward-icon" id="rIcon"></span>
+    <div class="reward-title" id="rTitle"></div>
+    <div class="reward-sub" id="rSub"></div>
+    <div class="reward-score" id="rScore"></div>
+    <div class="reward-stars" id="rStars"></div>
+    <div class="reward-btns">
+      <button class="rbtn rbtn-primary" id="rRetry">🔄 Cuba Lagi</button>
+      <button class="rbtn rbtn-secondary" onclick="closeReward()">✕ Tutup</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== DATA =====
+const DATA = [
+  {
+    id:0,word:'Membebankan',
+    def:'Menyusahkan atau memberikan tanggungan yang berat kepada seseorang, terutamanya dari segi wang atau tenaga.',
+    short:'Menyusahkan / memberi beban berat'
+  },
+  {
+    id:1,word:'Pembaziran',
+    def:'Perbuatan menggunakan sesuatu secara berlebihan, sia-sia, dan merugikan.',
+    short:'Menggunakan sesuatu secara berlebihan & sia-sia'
+  },
+  {
+    id:2,word:'Litar pintas',
+    def:'Perjalanan arus elektrik yang tidak betul atau tersasar pada wayar, yang boleh menyebabkan kerosakan elektrik atau kebakaran.',
+    short:'Arus elektrik tersasar pada wayar — boleh menyebabkan kebakaran'
+  },
+  {
+    id:3,word:'Alam sekitar',
+    def:'Segala benda yang ada di sekeliling kita, termasuk hidupan (seperti pokok dan haiwan) dan bukan hidupan (seperti sungai dan udara).',
+    short:'Persekitaran kita — pokok, haiwan, sungai, udara'
+  },
+  {
+    id:4,word:'Kehidupan',
+    def:'Keadaan, cara, atau pengalaman hidup manusia pada setiap hari.',
+    short:'Cara & pengalaman hidup harian manusia'
+  },
+  {
+    id:5,word:'Menetapkan',
+    def:'Menentukan atau memastikan sesuatu itu berada pada tahap tertentu dan tidak berubah-ubah.',
+    short:'Menentukan sesuatu supaya tidak berubah'
+  },
+  {
+    id:6,word:'Perbelanjaan',
+    def:'Jumlah wang yang digunakan atau dikeluarkan untuk membeli barang dan membayar keperluan asas.',
+    short:'Wang yang dikeluarkan untuk keperluan'
+  },
+  {
+    id:7,word:'Berkala',
+    def:'Sesuatu perbuatan yang dilakukan secara berulang dan tetap mengikut jadual masa tertentu (contohnya seminggu sekali atau sebulan sekali).',
+    short:'Dilakukan berulang mengikut jadual tetap'
+  },
+  {
+    id:8,word:'Pendawaian',
+    def:'Sistem susunan dan rangkaian wayar elektrik yang dipasang di dalam sesebuah rumah atau bangunan.',
+    short:'Rangkaian wayar elektrik dalam bangunan'
+  },
+  {
+    id:9,word:'Berkuasa',
+    def:'Mempunyai kekuatan, kemampuan, atau menggunakan tenaga elektrik yang sangat tinggi.',
+    short:'Mempunyai kekuatan / tenaga elektrik tinggi'
+  },
+];
+
+// ===== STATE =====
+let state = {
+  mode: 'padanan',
+  score: 0,
+  streak: 0,
+  // padanan
+  pd: { matched: [], selectedWord: null, selectedDef: null, shuffledWords:[], shuffledDefs:[] },
+  // kuiz
+  kz: { q: 0, score: 0, answered: false, order: [] },
+  // isi
+  isi: { q: 0, score: 0, answered: false, order: [] },
+};
+
+function addScore(pts) {
+  state.score += pts;
+  state.streak++;
+  document.getElementById('scoreNum').textContent = state.score;
+  const sb = document.getElementById('streakBadge');
+  document.getElementById('streakNum').textContent = state.streak;
+  if (state.streak >= 2) { sb.classList.add('show'); } else { sb.classList.remove('show'); }
+}
+function resetStreak() {
+  state.streak = 0;
+  document.getElementById('streakBadge').classList.remove('show');
+}
+
+// ===== DOTS =====
+function renderDots(total, current, results) {
+  const wrap = document.getElementById('progressDots');
+  wrap.innerHTML = Array.from({length:total},(_,i)=>{
+    let cls = 'pdot';
+    if (results && results[i] === true) cls += ' done';
+    else if (results && results[i] === false) cls += ' wrong-dot';
+    else if (i === current) cls += ' current';
+    return `<div class="${cls}"></div>`;
+  }).join('');
+}
+function updateProgress(done, total) {
+  document.getElementById('progressFill').style.width = `${(done/total)*100}%`;
+  document.getElementById('progressLabel').textContent = `${done} / ${total}`;
+}
+
+// ===== SWITCH MODE =====
+function switchMode(mode, btn) {
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  state.mode = mode;
+  state.streak = 0;
+  document.getElementById('streakBadge').classList.remove('show');
+  if (mode==='padanan') initPadanan();
+  if (mode==='kuiz') initKuiz();
+  if (mode==='isi') initIsi();
+}
+
+// ===== SHUFFLE =====
+function shuffle(arr) {
+  const a=[...arr];
+  for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+  return a;
+}
+
+// ===========================
+// MODE 1: PADANAN KAD
+// ===========================
+function initPadanan() {
+  state.pd = {
+    matched: [],
+    selectedWord: null,
+    selectedDef: null,
+    shuffledWords: shuffle([...DATA]),
+    shuffledDefs: shuffle([...DATA]),
+  };
+  renderDots(10, -1, []);
+  updateProgress(0, 10);
+  renderPadanan();
+}
+
+function renderPadanan() {
+  const pd = state.pd;
+  const area = document.getElementById('contentArea');
+
+  const wordsHTML = pd.shuffledWords.map((d,i) => {
+    const matched = pd.matched.includes(d.id);
+    return `<div class="word-card ${matched?'matched':''} ${pd.selectedWord===d.id?'selected':''}" 
+      id="wcard-${d.id}" onclick="selectWord(${d.id})">
+      <span class="match-badge">${i+1}</span>${d.word}
+    </div>`;
+  }).join('');
+
+  const defsHTML = pd.shuffledDefs.map((d,i) => {
+    const matched = pd.matched.includes(d.id);
+    return `<div class="def-card ${matched?'matched':''} ${pd.selectedDef===d.id?'selected':''}"
+      id="dcard-${d.id}" onclick="selectDef(${d.id})">
+      ${d.short}
+    </div>`;
+  }).join('');
+
+  area.innerHTML = `
+    <div class="instr-bar">
+      <span class="instr-icon">💡</span>
+      Klik <strong>perkataan</strong> di kiri, kemudian klik <strong>maksudnya</strong> di kanan untuk memadankan.
+      <span style="margin-left:auto;font-weight:800;color:var(--teal)">${pd.matched.length}/10 padanan</span>
+    </div>
+    <div class="game-grid">
+      <div class="col-header left">📝 Perkataan / Frasa</div>
+      <div class="col-header right">💬 Maksud</div>
+      <div class="col-words" id="colWords">${wordsHTML}</div>
+      <div class="col-defs" id="colDefs">${defsHTML}</div>
+    </div>
+  `;
+
+  const results = DATA.map(d => pd.matched.includes(d.id) ? true : undefined);
+  renderDots(10, -1, results);
+  updateProgress(pd.matched.length, 10);
+}
+
+function selectWord(id) {
+  const pd = state.pd;
+  if (pd.matched.includes(id)) return;
+  pd.selectedWord = (pd.selectedWord === id) ? null : id;
+  renderPadanan();
+  if (pd.selectedWord !== null && pd.selectedDef !== null) checkPadanan();
+}
+
+function selectDef(id) {
+  const pd = state.pd;
+  if (pd.matched.includes(id)) return;
+  pd.selectedDef = (pd.selectedDef === id) ? null : id;
+  renderPadanan();
+  if (pd.selectedWord !== null && pd.selectedDef !== null) checkPadanan();
+}
+
+function checkPadanan() {
+  const pd = state.pd;
+  const wid = pd.selectedWord;
+  const did = pd.selectedDef;
+  if (wid === did) {
+    // Correct!
+    pd.matched.push(wid);
+    pd.selectedWord = null;
+    pd.selectedDef = null;
+    addScore(10);
+    renderPadanan();
+    if (pd.matched.length === 10) {
+      setTimeout(() => showReward('padanan', pd.matched.length, 10), 500);
+    }
+  } else {
+    // Wrong
+    resetStreak();
+    const wEl = document.getElementById(`wcard-${wid}`);
+    const dEl = document.getElementById(`dcard-${did}`);
+    if (wEl) wEl.classList.add('wrong-flash');
+    if (dEl) dEl.classList.add('wrong-flash');
+    setTimeout(() => {
+      pd.selectedWord = null;
+      pd.selectedDef = null;
+      renderPadanan();
+    }, 700);
+  }
+}
+
+// ===========================
+// MODE 2: KUIZ
+// ===========================
+function initKuiz() {
+  state.kz = { q:0, score:0, answered:false, order: shuffle([...Array(10).keys()]), results:[] };
+  renderDots(10, 0, []);
+  updateProgress(0, 10);
+  renderKuiz();
+}
+
+function renderKuiz() {
+  const kz = state.kz;
+  const area = document.getElementById('contentArea');
+  const dIdx = kz.order[kz.q];
+  const item = DATA[dIdx];
+
+  // Generate options: 1 correct + 3 wrong
+  const wrongPool = DATA.filter(d => d.id !== dIdx);
+  const wrongs = shuffle(wrongPool).slice(0,3);
+  const opts = shuffle([item, ...wrongs]);
+  const letters = ['A','B','C','D'];
+
+  // Randomly show word→def or def→word
+  const mode = Math.random() > 0.5 ? 'word2def' : 'def2word';
+
+  let questionHTML, optHTMLs;
+  if (mode === 'word2def') {
+    questionHTML = `Apakah maksud perkataan <em>"${item.word}"</em>?`;
+    optHTMLs = opts.map((o,i) =>
+      `<button class="quiz-opt" onclick="checkKuiz(${o.id === dIdx ? 1 : 0},this)">
+        <span class="opt-letter">${letters[i]}</span><span>${o.short}</span>
+      </button>`
+    );
+  } else {
+    questionHTML = `Perkataan manakah yang bermaksud:<br><em>"${item.short}"</em>`;
+    optHTMLs = opts.map((o,i) =>
+      `<button class="quiz-opt" onclick="checkKuiz(${o.id === dIdx ? 1 : 0},this)">
+        <span class="opt-letter">${letters[i]}</span><span>${o.word}</span>
+      </button>`
+    );
+  }
+
+  area.innerHTML = `
+    <div class="quiz-card">
+      <div class="quiz-num">Soalan ${kz.q+1} / 10</div>
+      <div class="quiz-question">${questionHTML}</div>
+      <div class="quiz-opts">${optHTMLs.join('')}</div>
+      <div class="feedback-box" id="fbBox"></div>
+    </div>
+    <button class="quiz-next" id="qNext" onclick="nextKuiz()">
+      ${kz.q < 9 ? 'Seterusnya →' : 'Lihat Keputusan 🏆'}
+    </button>
+  `;
+
+  renderDots(10, kz.q, kz.results);
+  kz.answered = false;
+}
+
+function checkKuiz(correct, btn) {
+  if (state.kz.answered) return;
+  state.kz.answered = true;
+  const dIdx = state.kz.order[state.kz.q];
+  const item = DATA[dIdx];
+  document.querySelectorAll('.quiz-opt').forEach(b=>b.disabled=true);
+  const fb = document.getElementById('fbBox');
+
+  if (correct) {
+    btn.classList.add('correct');
+    addScore(10);
+    state.kz.results.push(true);
+    fb.className='feedback-box show right';
+    fb.innerHTML = `✅ <strong>Betul!</strong> "${item.word}" bermaksud: ${item.def}`;
+  } else {
+    btn.classList.add('wrong');
+    resetStreak();
+    state.kz.results.push(false);
+    fb.className='feedback-box show wrong-fb';
+    fb.innerHTML = `❌ <strong>Tidak tepat.</strong> Jawapan betul: <em>"${item.word}"</em> — ${item.def}`;
+    // Highlight correct
+    document.querySelectorAll('.quiz-opt').forEach(b=>{
+      if (!b.classList.contains('wrong') && b.querySelector('span:last-child').textContent.includes(item.word.slice(0,5)))
+        b.classList.add('correct');
+    });
+  }
+  document.getElementById('qNext').classList.add('show');
+  renderDots(10, state.kz.q, state.kz.results);
+  updateProgress(state.kz.q+1, 10);
+}
+
+function nextKuiz() {
+  state.kz.q++;
+  if (state.kz.q >= 10) {
+    showReward('kuiz', state.kz.results.filter(Boolean).length, 10);
+  } else {
+    renderKuiz();
+  }
+}
+
+// ===========================
+// MODE 3: ISI TEMPAT KOSONG
+// ===========================
+const FILL_SENTENCES = [
+  { id:6, sentence:'Kita perlu <BLANK> wang dengan bijak supaya tidak membazir.', answer:'perbelanjaan', hint:'wang yang dikeluarkan' },
+  { id:0, sentence:'Membeli telefon baharu setiap bulan akan <BLANK> ibu bapa.', answer:'membebankan', hint:'menyusahkan / memberi beban' },
+  { id:1, sentence:'Meninggalkan lampu menyala sepanjang hari adalah satu <BLANK> tenaga elektrik.', answer:'pembaziran', hint:'menggunakan secara berlebihan & sia-sia' },
+  { id:8, sentence:'Tukang elektrik memeriksa <BLANK> rumah yang rosak itu.', answer:'pendawaian', hint:'rangkaian wayar elektrik' },
+  { id:2, sentence:'Jangan hubungkan terlalu banyak alatan ke satu soket kerana boleh menyebabkan <BLANK>.', answer:'litar pintas', hint:'arus elektrik tersasar' },
+  { id:3, sentence:'Kita bertanggungjawab menjaga <BLANK> supaya sungai dan udara kekal bersih.', answer:'alam sekitar', hint:'persekitaran sekeliling kita' },
+  { id:7, sentence:'Kenderaan perlu diperiksa secara <BLANK> untuk memastikan keselamatannya.', answer:'berkala', hint:'dilakukan berulang mengikut jadual' },
+  { id:9, sentence:'Peti sejuk dan mesin basuh adalah antara alatan rumah yang paling <BLANK>.', answer:'berkuasa', hint:'menggunakan tenaga elektrik tinggi' },
+  { id:5, sentence:'Guru itu <BLANK> had perbelanjaan pelajar untuk lawatan ke muzium.', answer:'menetapkan', hint:'menentukan supaya tidak berubah' },
+  { id:4, sentence:'Berjimat cermat adalah amalan baik untuk menjamin <BLANK> yang selesa.', answer:'kehidupan', hint:'cara & pengalaman hidup harian' },
+];
+
+function initIsi() {
+  state.isi = { q:0, score:0, answered:false, order: shuffle([...Array(10).keys()]), results:[] };
+  renderDots(10, 0, []);
+  updateProgress(0, 10);
+  renderIsi();
+}
+
+function renderIsi() {
+  const isi = state.isi;
+  const area = document.getElementById('contentArea');
+  const item = FILL_SENTENCES[isi.order[isi.q]];
+
+  // Build choices: correct + 3 distractors
+  const allWords = DATA.map(d=>d.word);
+  const distractors = shuffle(allWords.filter(w=>w!==item.answer)).slice(0,3);
+  const choices = shuffle([item.answer, ...distractors]);
+
+  const sentenceHTML = item.sentence.replace('<BLANK>',
+    `<span class="fill-blank" id="theBlank">_______</span>`);
+
+  const choicesHTML = choices.map(c=>
+    `<button class="fill-choice" id="choice-${c.replace(/\s+/g,'-')}" onclick="checkIsi('${c}',this)">${c}</button>`
+  ).join('');
+
+  area.innerHTML = `
+    <div class="fill-card">
+      <div class="quiz-num">Soalan ${isi.q+1} / 10</div>
+      <div style="font-size:.75rem;color:var(--muted);font-weight:700;margin-bottom:8px">
+        💡 Petunjuk: <em>${item.hint}</em>
+      </div>
+      <div class="fill-sentence">${sentenceHTML}</div>
+      <div class="fill-choices">${choicesHTML}</div>
+      <div class="feedback-box" id="isiFB"></div>
+    </div>
+    <button class="quiz-next" id="isiNext" onclick="nextIsi()">
+      ${isi.q < 9 ? 'Seterusnya →' : 'Lihat Keputusan 🏆'}
+    </button>
+  `;
+
+  renderDots(10, isi.q, isi.results);
+  isi.answered = false;
+}
+
+function checkIsi(chosen, btn) {
+  if (state.isi.answered) return;
+  state.isi.answered = true;
+  const item = FILL_SENTENCES[state.isi.order[state.isi.q]];
+  document.querySelectorAll('.fill-choice').forEach(b=>b.disabled=true);
+
+  const blank = document.getElementById('theBlank');
+  const fb = document.getElementById('isiFB');
+
+  if (chosen === item.answer) {
+    blank.textContent = chosen;
+    blank.classList.add('filled');
+    btn.classList.add('correct-choice');
+    addScore(10);
+    state.isi.results.push(true);
+    fb.className='feedback-box show right';
+    fb.innerHTML=`✅ <strong>Betul!</strong> Jawapan: "<em>${item.answer}</em>"`;
+  } else {
+    btn.classList.add('wrong-choice');
+    resetStreak();
+    state.isi.results.push(false);
+    // Show correct
+    const correctBtn = document.getElementById(`choice-${item.answer.replace(/\s+/g,'-')}`);
+    if (correctBtn) correctBtn.classList.add('correct-choice');
+    blank.textContent = item.answer;
+    blank.classList.add('filled');
+    fb.className='feedback-box show wrong-fb';
+    fb.innerHTML=`❌ Jawapan betul: "<em>${item.answer}</em>"`;
+  }
+
+  document.getElementById('isiNext').classList.add('show');
+  renderDots(10, state.isi.q, state.isi.results);
+  updateProgress(state.isi.q+1, 10);
+}
+
+function nextIsi() {
+  state.isi.q++;
+  if (state.isi.q >= 10) {
+    showReward('isi', state.isi.results.filter(Boolean).length, 10);
+  } else {
+    renderIsi();
+  }
+}
+
+// ===========================
+// REWARD
+// ===========================
+function showReward(mode, correct, total) {
+  const pct = correct/total;
+  const ov = document.getElementById('rewardOverlay');
+  document.getElementById('rIcon').textContent = pct===1?'🏆':pct>=.7?'🥇':pct>=.5?'🥈':'📖';
+  document.getElementById('rTitle').textContent = pct===1?'Sempurna!':pct>=.7?'Cemerlang!':pct>=.5?'Bagus!':'Cuba Lagi!';
+  document.getElementById('rSub').textContent = pct===1?'Kamu menguasai semua kosa kata!':'Teruskan berlatih untuk lebih mahir!';
+  document.getElementById('rScore').textContent = `${correct} / ${total} betul`;
+  document.getElementById('rStars').textContent = pct===1?'⭐⭐⭐':pct>=.7?'⭐⭐':pct>=.5?'⭐':'';
+  ov.classList.add('show');
+  document.getElementById('rRetry').onclick = () => {
+    ov.classList.remove('show');
+    if (mode==='padanan') initPadanan();
+    else if (mode==='kuiz') initKuiz();
+    else initIsi();
+  };
+  triggerConfetti();
+}
+function closeReward() { document.getElementById('rewardOverlay').classList.remove('show'); }
+
+function triggerConfetti() {
+  const colors=['#C8963E','#1A7A6E','#D95F3B','#2E6FA8','#25A896','#E8B660'];
+  for(let i=0;i<45;i++){
+    setTimeout(()=>{
+      const c=document.createElement('div');
+      c.className='cf';
+      c.style.cssText=`left:${Math.random()*100}vw;top:-20px;background:${colors[Math.floor(Math.random()*colors.length)]};
+        animation-duration:${1+Math.random()*1.5}s;animation-delay:${Math.random()*0.4}s;
+        border-radius:${Math.random()>.5?'50%':'2px'};transform:rotate(${Math.random()*360}deg)`;
+      document.body.appendChild(c);
+      setTimeout(()=>c.remove(),2800);
+    },i*28);
+  }
+}
+
+// Init
+initPadanan();
+</script>
+</body>
+</html>
